@@ -525,7 +525,7 @@
         function updateLegend() {
             const legend = document.getElementById('chart-legend');
             if (showGiving) {
-                legend.innerHTML = 'Lines = Attendance avg • <span style="color:#2ecc71;">Bars = Monthly Giving ($K)</span>';
+                legend.innerHTML = 'Lines = Attendance avg • Bars = Monthly Giving ($K) • Colors match by year';
             } else {
                 legend.textContent = 'Attendance shown as lines • Select years above to compare';
             }
@@ -556,15 +556,17 @@
             });
             
             // Giving datasets (bars) - only if toggle is on
+            // Colors match the attendance line colors for each year
             if (showGiving) {
                 years.forEach((year, idx) => {
                     if (givingData[year]) {
+                        const color = attendanceColors[idx % attendanceColors.length];
                         datasets.push({
                             label: `${year} Giving ($K)`,
                             data: months.map(m => givingData[year]?.[m] || null),
-                            backgroundColor: '#2ecc71' + '60',
-                            borderColor: '#2ecc71',
-                            borderWidth: 1,
+                            backgroundColor: color + '40',
+                            borderColor: color,
+                            borderWidth: 2,
                             yAxisID: 'y1',
                             type: 'bar',
                             order: 2,
