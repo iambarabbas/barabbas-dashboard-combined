@@ -397,6 +397,7 @@
         // Data sources
         const ATTENDANCE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZEGRwmZN8xH8wRsRHbu4qbTxtS0D6s3OMwJGXjIUIjaT2XTS-ZfZfeVIa5vVXRgpBBO79gaFLvoKe/pub?output=csv';
         const GIVING_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1MdC1QfDoCjrhTlRusQBOfp0Cayy_RvAj/export?format=csv&gid=1439466888';
+        const GIVING_FORM_RESPONSES_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDpOG_FOEcvIqRcNXz50q2j-ynxa_8zxBYF4W6oxoxghGHx-KKEUDSwSFQhpOWj7-blAvW7RNr2EHw/pub?output=csv';
         
         let attendanceData = [];
         let givingData = {};
@@ -470,7 +471,7 @@
             return data.sort((a, b) => a.date - b.date);
         }
         
-        // Parse giving CSV
+        // Parse giving CSV (original format: year, jan, feb, mar, ...)
         function parseGivingCSV(csv) {
             const lines = csv.trim().split('\n');
             const data = {};
@@ -498,6 +499,55 @@
             }
             
             return data;
+        }
+        
+        // Parse form responses CSV (format: Timestamp, Year, Month, Amount)
+        function parseFormResponsesCSV(csv) {
+            const lines = csv.trim().split('\n');
+            const data = {};
+            
+            // Skip header row
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const parts = line.split(',');
+                if (parts.length < 4) continue;
+                
+                const year = parseInt(parts[1]);
+                const monthName = parts[2].trim();
+                const amount = parseInt(parts[3]) || null;
+                
+                if (!year || year < 2000 || year > 2100) continue;
+                if (!amount) continue;
+                
+                // Normalize month name to full month name
+                const monthIndex = months.findIndex(m => 
+                    m.toLowerCase().startsWith(monthName.toLowerCase().substring(0, 3))
+                );
+                if (monthIndex === -1) continue;
+                
+                const fullMonth = months[monthIndex];
+                
+                if (!data[year]) data[year] = {};
+                data[year][fullMonth] = amount;
+            }
+            
+            return data;
+        }
+        
+        // Merge giving data (form responses override original)
+        function mergeGivingData(original, formResponses) {
+            const merged = JSON.parse(JSON.stringify(original)); // Deep copy
+            
+            Object.keys(formResponses).forEach(year => {
+                if (!merged[year]) merged[year] = {};
+                Object.keys(formResponses[year]).forEach(month => {
+                    merged[year][month] = formResponses[year][month];
+                });
+            });
+            
+            return merged;
         }
         
         // Calculate attendance monthly averages
@@ -848,13 +898,24 @@
                 const attendanceCSV = await attendanceResponse.text();
                 attendanceData = parseAttendanceCSV(attendanceCSV);
                 
-                // Load giving data
-                const givingResponse = await fetch(GIVING_SHEET_URL);
+                // Load giving data from both sources
+                const [givingResponse, formResponse] = await Promise.all([
+                    fetch(GIVING_SHEET_URL),
+                    fetch(GIVING_FORM_RESPONSES_URL)
+                ]);
+                
                 const givingCSV = await givingResponse.text();
-                givingData = parseGivingCSV(givingCSV);
+                const formCSV = await formResponse.text();
+                
+                const originalGiving = parseGivingCSV(givingCSV);
+                const formGiving = parseFormResponsesCSV(formCSV);
+                
+                // Merge: form responses override original data
+                givingData = mergeGivingData(originalGiving, formGiving);
                 
                 console.log('Attendance records:', attendanceData.length);
                 console.log('Giving years:', Object.keys(givingData));
+                console.log('Form responses merged:', Object.keys(formGiving).length, 'years');
                 
                 // Select last 3 years by default
                 selectRecent(3);
