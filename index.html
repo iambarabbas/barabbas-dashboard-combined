@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barabbas Road Church - Attendance & Giving Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            font-weight: 300;
+            color: #C0A365;
+            margin-bottom: 8px;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 0.95rem;
+        }
+        
+        .controls {
+            background: #272727;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .controls h2 {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #C0A365;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .year-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 8px;
+        }
+        
+        .year-btn {
+            background: #333;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            padding: 10px 8px;
+            color: #aaa;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .year-btn:hover {
+            background: #444;
+            color: #fff;
+        }
+        
+        .year-btn.selected {
+            background: #C0A365;
+            color: #1a1a1a;
+            border-color: #C0A365;
+        }
+        
+        .quick-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .quick-btn {
+            background: transparent;
+            border: 1px solid #555;
+            border-radius: 6px;
+            padding: 6px 12px;
+            color: #888;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .quick-btn:hover {
+            border-color: #C0A365;
+            color: #C0A365;
+        }
+        
+        .toggle-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #444;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .toggle-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .toggle-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .toggle {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: #444;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .toggle.active {
+            background: #2ecc71;
+        }
+        
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transition: left 0.3s;
+        }
+        
+        .toggle.active::after {
+            left: 27px;
+        }
+        
+        .toggle-text {
+            color: #ccc;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .giving-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #2ecc71;
+            border-radius: 2px;
+            margin-right: 6px;
+        }
+        
+        .chart-container {
+            background: #272727;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 450px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: #272727;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-card.giving {
+            border: 2px solid #2ecc71;
+        }
+        
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 300;
+            color: #C0A365;
+        }
+        
+        .stat-card.giving .stat-value {
+            color: #2ecc71;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 4px;
+        }
+        
+        .table-container {
+            background: #272727;
+            border-radius: 12px;
+            padding: 20px;
+            overflow-x: auto;
+            margin-bottom: 24px;
+        }
+        
+        .table-container h2 {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #C0A365;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            font-size: 0.9rem;
+        }
+        
+        th {
+            color: #C0A365;
+            font-weight: 500;
+        }
+        
+        td {
+            color: #ccc;
+        }
+        
+        tr:hover td {
+            background: #333;
+        }
+        
+        .giving-cell {
+            color: #2ecc71 !important;
+            font-weight: 500;
+        }
+        
+        .action-buttons {
+            text-align: center;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .add-btn {
+            display: inline-block;
+            background: #C0A365;
+            color: #1a1a1a;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .add-btn:hover {
+            background: #d4b876;
+        }
+        
+        .add-btn.giving {
+            background: #2ecc71;
+        }
+        
+        .add-btn.giving:hover {
+            background: #27ae60;
+        }
+        
+        .legend-note {
+            text-align: center;
+            color: #666;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Barabbas Road Church</h1>
+            <p class="subtitle">Attendance & Giving Dashboard • 2012–Present</p>
+        </header>
+        
+        <div class="action-buttons">
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSciBaQI6Fgn6853vl3tuNslWZ81zEklPseaTPKcpd9K1B_uTQ/viewform" target="_blank" class="add-btn">+ Add Attendance</a>
+            <a href="https://docs.google.com/forms/d/e/YOUR_GIVING_FORM_ID/viewform" target="_blank" class="add-btn giving">+ Add Giving Data</a>
+        </div>
+        
+        <div class="stats-grid" id="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-avg">--</div>
+                <div class="stat-label">Avg Attendance</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-high">--</div>
+                <div class="stat-label">Highest Attendance</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">--</div>
+                <div class="stat-label">Total Services</div>
+            </div>
+            <div class="stat-card giving" id="giving-stats" style="display: none;">
+                <div class="stat-value" id="stat-giving">--</div>
+                <div class="stat-label">Total Giving (Selected)</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <h2>Select Years to Compare</h2>
+            <div class="year-grid" id="year-buttons"></div>
+            <div class="quick-actions">
+                <button class="quick-btn" onclick="selectAll()">Select All</button>
+                <button class="quick-btn" onclick="selectNone()">Clear</button>
+                <button class="quick-btn" onclick="selectRecent(5)">Last 5 Years</button>
+            </div>
+            
+            <div class="toggle-section">
+                <span class="toggle-label">Overlay Data:</span>
+                <div class="toggle-wrapper">
+                    <div class="toggle" id="givingToggle" onclick="toggleGiving()"></div>
+                    <span class="toggle-text"><span class="giving-indicator"></span>Monthly Giving ($K)</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="mainChart"></canvas>
+            </div>
+            <p class="legend-note" id="chart-legend">Attendance shown as lines • Select years above to compare</p>
+        </div>
+        
+        <div class="table-container">
+            <h2>Monthly Averages by Year</h2>
+            <div id="table-content">
+                <p style="color:#888;text-align:center;">Loading data...</p>
+            </div>
+        </div>
+        
+        <div class="table-container" id="giving-table-container" style="display: none;">
+            <h2>Monthly Giving by Year ($K)</h2>
+            <div id="giving-table-content">
+                <p style="color:#888;text-align:center;">Loading giving data...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Data sources
+        const ATTENDANCE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZEGRwmZN8xH8wRsRHbu4qbTxtS0D6s3OMwJGXjIUIjaT2XTS-ZfZfeVIa5vVXRgpBBO79gaFLvoKe/pub?output=csv';
+        const GIVING_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1MdC1QfDoCjrhTlRusQBOfp0Cayy_RvAj/export?format=csv&gid=1439466888';
+        
+        let attendanceData = [];
+        let givingData = {};
+        let selectedYears = new Set();
+        let showGiving = false;
+        let chart = null;
+        
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        const attendanceColors = [
+            '#C0A365', '#279AB3', '#e74c3c', '#9b59b6', '#f39c12', 
+            '#1abc9c', '#e91e63', '#00bcd4', '#ff5722', '#8bc34a',
+            '#673ab7', '#03a9f4', '#ff9800', '#795548', '#607d8b'
+        ];
+        
+        // Parse attendance CSV
+        function parseAttendanceCSV(csv) {
+            const lines = csv.trim().split('\n');
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line.trim()) continue;
+                
+                const parts = line.split(',');
+                let dateStr, attendance, preacher, notes;
+                
+                if (parts[0] && parts[0].match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+                    dateStr = parts[0];
+                    if (parts[1] && parts[1].match(/^\d{4}$/)) {
+                        attendance = parseInt(parts[4]) || 0;
+                        preacher = parts[5] || '';
+                        notes = parts[6] || '';
+                    } else {
+                        attendance = parseInt(parts[2]) || 0;
+                        preacher = parts[3] || '';
+                        notes = parts[4] || '';
+                    }
+                } else if (parts[1] && parts[1].match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+                    dateStr = parts[1];
+                    attendance = parseInt(parts[2]) || 0;
+                    preacher = parts[3] || '';
+                    notes = parts[4] || '';
+                } else {
+                    continue;
+                }
+                
+                if (!dateStr || !attendance) continue;
+                
+                const dateParts = dateStr.split('/');
+                const month = parseInt(dateParts[0]) - 1;
+                const day = parseInt(dateParts[1]);
+                const year = parseInt(dateParts[2]);
+                
+                if (year < 2000 || year > 2100 || attendance < 10) continue;
+                
+                data.push({
+                    date: new Date(year, month, day),
+                    year: year,
+                    month: months[month],
+                    monthIndex: month,
+                    attendance: attendance,
+                    preacher: preacher,
+                    notes: notes
+                });
+            }
+            
+            return data.sort((a, b) => a.date - b.date);
+        }
+        
+        // Parse giving CSV
+        function parseGivingCSV(csv) {
+            const lines = csv.trim().split('\n');
+            const data = {};
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const parts = line.split(',');
+                
+                // Look for rows that start with a year (2018-2030)
+                const yearIdx = parts.findIndex(p => p.match(/^20\d{2}$/));
+                if (yearIdx === -1) continue;
+                
+                const year = parseInt(parts[yearIdx]);
+                const values = parts.slice(yearIdx + 1, yearIdx + 13);
+                
+                if (values.length > 0) {
+                    data[year] = {};
+                    months.forEach((month, idx) => {
+                        const val = parseInt(values[idx]) || null;
+                        if (val) data[year][month] = val;
+                    });
+                }
+            }
+            
+            return data;
+        }
+        
+        // Calculate attendance monthly averages
+        function calculateAttendanceAverages(data) {
+            const averages = {};
+            
+            data.forEach(d => {
+                if (!averages[d.year]) {
+                    averages[d.year] = {};
+                    months.forEach(m => averages[d.year][m] = []);
+                }
+                averages[d.year][d.month].push(d.attendance);
+            });
+            
+            Object.keys(averages).forEach(year => {
+                months.forEach(month => {
+                    const vals = averages[year][month];
+                    averages[year][month] = vals.length > 0 
+                        ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+                        : null;
+                });
+            });
+            
+            return averages;
+        }
+        
+        // Toggle giving overlay
+        function toggleGiving() {
+            showGiving = !showGiving;
+            document.getElementById('givingToggle').classList.toggle('active', showGiving);
+            document.getElementById('giving-stats').style.display = showGiving ? 'block' : 'none';
+            document.getElementById('giving-table-container').style.display = showGiving ? 'block' : 'none';
+            updateChart();
+            updateStats();
+            updateLegend();
+        }
+        
+        // Update legend text
+        function updateLegend() {
+            const legend = document.getElementById('chart-legend');
+            if (showGiving) {
+                legend.innerHTML = 'Lines = Attendance avg • <span style="color:#2ecc71;">Bars = Monthly Giving ($K)</span>';
+            } else {
+                legend.textContent = 'Attendance shown as lines • Select years above to compare';
+            }
+        }
+        
+        // Update chart
+        function updateChart() {
+            const averages = calculateAttendanceAverages(attendanceData);
+            const years = Array.from(selectedYears).sort();
+            
+            const datasets = [];
+            
+            // Attendance datasets (lines)
+            years.forEach((year, idx) => {
+                datasets.push({
+                    label: `${year} Attendance`,
+                    data: months.map(m => averages[year]?.[m] || null),
+                    borderColor: attendanceColors[idx % attendanceColors.length],
+                    backgroundColor: attendanceColors[idx % attendanceColors.length] + '20',
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    spanGaps: true,
+                    yAxisID: 'y',
+                    type: 'line',
+                    order: 1
+                });
+            });
+            
+            // Giving datasets (bars) - only if toggle is on
+            if (showGiving) {
+                years.forEach((year, idx) => {
+                    if (givingData[year]) {
+                        datasets.push({
+                            label: `${year} Giving ($K)`,
+                            data: months.map(m => givingData[year]?.[m] || null),
+                            backgroundColor: '#2ecc71' + '60',
+                            borderColor: '#2ecc71',
+                            borderWidth: 1,
+                            yAxisID: 'y1',
+                            type: 'bar',
+                            order: 2,
+                            barPercentage: 0.6,
+                            categoryPercentage: 0.8
+                        });
+                    }
+                });
+            }
+            
+            const config = {
+                type: 'line',
+                data: {
+                    labels: monthsShort,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { 
+                                color: '#ccc',
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#272727',
+                            titleColor: '#C0A365',
+                            bodyColor: '#fff',
+                            borderColor: '#444',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label.includes('Giving')) {
+                                        return `${label}: $${context.parsed.y}K`;
+                                    }
+                                    return `${label}: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: false,
+                            grid: { color: '#333' },
+                            ticks: { color: '#888' },
+                            title: {
+                                display: true,
+                                text: 'Attendance',
+                                color: '#C0A365'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: showGiving,
+                            position: 'right',
+                            beginAtZero: true,
+                            grid: { drawOnChartArea: false },
+                            ticks: { 
+                                color: '#2ecc71',
+                                callback: function(value) {
+                                    return '$' + value + 'K';
+                                }
+                            },
+                            title: {
+                                display: showGiving,
+                                text: 'Giving ($K)',
+                                color: '#2ecc71'
+                            }
+                        },
+                        x: {
+                            grid: { color: '#333' },
+                            ticks: { color: '#888' }
+                        }
+                    }
+                }
+            };
+            
+            if (chart) {
+                chart.destroy();
+            }
+            
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            chart = new Chart(ctx, config);
+        }
+        
+        // Update stats
+        function updateStats() {
+            const filtered = attendanceData.filter(d => selectedYears.has(d.year));
+            
+            if (filtered.length === 0) {
+                document.getElementById('stat-avg').textContent = '--';
+                document.getElementById('stat-high').textContent = '--';
+                document.getElementById('stat-total').textContent = '--';
+                document.getElementById('stat-giving').textContent = '--';
+                return;
+            }
+            
+            const avg = Math.round(filtered.reduce((a, b) => a + b.attendance, 0) / filtered.length);
+            const high = Math.max(...filtered.map(d => d.attendance));
+            
+            document.getElementById('stat-avg').textContent = avg;
+            document.getElementById('stat-high').textContent = high;
+            document.getElementById('stat-total').textContent = filtered.length;
+            
+            // Calculate total giving for selected years
+            if (showGiving) {
+                let totalGiving = 0;
+                selectedYears.forEach(year => {
+                    if (givingData[year]) {
+                        Object.values(givingData[year]).forEach(val => {
+                            if (val) totalGiving += val;
+                        });
+                    }
+                });
+                document.getElementById('stat-giving').textContent = '$' + totalGiving + 'K';
+            }
+        }
+        
+        // Update attendance table
+        function updateTable() {
+            const averages = calculateAttendanceAverages(attendanceData);
+            const years = Array.from(selectedYears).sort().reverse();
+            
+            if (years.length === 0) {
+                document.getElementById('table-content').innerHTML = '<p style="color:#888;text-align:center;">Select years to view data</p>';
+                return;
+            }
+            
+            let html = '<table><thead><tr><th>Year</th>';
+            monthsShort.forEach(m => html += `<th>${m}</th>`);
+            html += '<th>Avg</th></tr></thead><tbody>';
+            
+            years.forEach(year => {
+                html += `<tr><td style="color:#C0A365;font-weight:500;">${year}</td>`;
+                let yearVals = [];
+                months.forEach(month => {
+                    const val = averages[year]?.[month];
+                    html += `<td>${val || '-'}</td>`;
+                    if (val) yearVals.push(val);
+                });
+                const yearAvg = yearVals.length > 0 ? Math.round(yearVals.reduce((a,b) => a+b, 0) / yearVals.length) : '-';
+                html += `<td style="color:#C0A365;font-weight:500;">${yearAvg}</td></tr>`;
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('table-content').innerHTML = html;
+        }
+        
+        // Update giving table
+        function updateGivingTable() {
+            const years = Array.from(selectedYears).filter(y => givingData[y]).sort().reverse();
+            
+            if (years.length === 0) {
+                document.getElementById('giving-table-content').innerHTML = '<p style="color:#888;text-align:center;">No giving data for selected years</p>';
+                return;
+            }
+            
+            let html = '<table><thead><tr><th>Year</th>';
+            monthsShort.forEach(m => html += `<th>${m}</th>`);
+            html += '<th>Total</th></tr></thead><tbody>';
+            
+            years.forEach(year => {
+                html += `<tr><td style="color:#2ecc71;font-weight:500;">${year}</td>`;
+                let yearTotal = 0;
+                months.forEach(month => {
+                    const val = givingData[year]?.[month];
+                    html += `<td class="giving-cell">${val ? '$' + val + 'K' : '-'}</td>`;
+                    if (val) yearTotal += val;
+                });
+                html += `<td style="color:#2ecc71;font-weight:500;">$${yearTotal}K</td></tr>`;
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('giving-table-content').innerHTML = html;
+        }
+        
+        // Toggle year selection
+        function toggleYear(year) {
+            if (selectedYears.has(year)) {
+                selectedYears.delete(year);
+            } else {
+                selectedYears.add(year);
+            }
+            updateAll();
+        }
+        
+        // Update everything
+        function updateAll() {
+            updateButtons();
+            updateChart();
+            updateTable();
+            updateGivingTable();
+            updateStats();
+        }
+        
+        // Update button states
+        function updateButtons() {
+            document.querySelectorAll('.year-btn').forEach(btn => {
+                const year = parseInt(btn.dataset.year);
+                btn.classList.toggle('selected', selectedYears.has(year));
+            });
+        }
+        
+        // Quick actions
+        function selectAll() {
+            const years = [...new Set(attendanceData.map(d => d.year))];
+            selectedYears = new Set(years);
+            updateAll();
+        }
+        
+        function selectNone() {
+            selectedYears = new Set();
+            updateAll();
+        }
+        
+        function selectRecent(n) {
+            const years = [...new Set(attendanceData.map(d => d.year))].sort().reverse().slice(0, n);
+            selectedYears = new Set(years);
+            updateAll();
+        }
+        
+        // Create year buttons
+        function createYearButtons() {
+            const years = [...new Set(attendanceData.map(d => d.year))].sort();
+            const container = document.getElementById('year-buttons');
+            container.innerHTML = years.map(year => 
+                `<button class="year-btn ${selectedYears.has(year) ? 'selected' : ''}" 
+                         data-year="${year}" 
+                         onclick="toggleYear(${year})">${year}</button>`
+            ).join('');
+        }
+        
+        // Load all data
+        async function loadData() {
+            try {
+                // Load attendance data
+                const attendanceResponse = await fetch(ATTENDANCE_SHEET_URL);
+                const attendanceCSV = await attendanceResponse.text();
+                attendanceData = parseAttendanceCSV(attendanceCSV);
+                
+                // Load giving data
+                const givingResponse = await fetch(GIVING_SHEET_URL);
+                const givingCSV = await givingResponse.text();
+                givingData = parseGivingCSV(givingCSV);
+                
+                console.log('Attendance records:', attendanceData.length);
+                console.log('Giving years:', Object.keys(givingData));
+                
+                // Select last 3 years by default
+                selectRecent(3);
+                createYearButtons();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('table-content').innerHTML = 
+                    '<p style="color:#e74c3c;text-align:center;">Error loading data. Please try again.</p>';
+            }
+        }
+        
+        // Initialize
+        loadData();
+    </script>
+</body>
+</html>
