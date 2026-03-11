@@ -176,6 +176,15 @@
             margin-right: 6px;
         }
         
+        .attendance-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #C0A365;
+            border-radius: 2px;
+            margin-right: 6px;
+        }
+        
         .chart-container {
             background: #272727;
             border-radius: 12px;
@@ -350,10 +359,14 @@
             </div>
             
             <div class="toggle-section">
-                <span class="toggle-label">Overlay Data:</span>
+                <span class="toggle-label">Show Data:</span>
+                <div class="toggle-wrapper">
+                    <div class="toggle active" id="attendanceToggle" onclick="toggleAttendance()"></div>
+                    <span class="toggle-text"><span class="attendance-indicator"></span>Attendance</span>
+                </div>
                 <div class="toggle-wrapper">
                     <div class="toggle" id="givingToggle" onclick="toggleGiving()"></div>
-                    <span class="toggle-text"><span class="giving-indicator"></span>Monthly Giving ($K)</span>
+                    <span class="toggle-text"><span class="giving-indicator"></span>Giving ($K)</span>
                 </div>
             </div>
         </div>
@@ -388,6 +401,7 @@
         let attendanceData = [];
         let givingData = {};
         let selectedYears = new Set();
+        let showAttendance = true;
         let showGiving = false;
         let chart = null;
         
@@ -510,6 +524,15 @@
             return averages;
         }
         
+        // Toggle attendance
+        function toggleAttendance() {
+            showAttendance = !showAttendance;
+            document.getElementById('attendanceToggle').classList.toggle('active', showAttendance);
+            updateChart();
+            updateStats();
+            updateLegend();
+        }
+        
         // Toggle giving overlay
         function toggleGiving() {
             showGiving = !showGiving;
@@ -524,10 +547,14 @@
         // Update legend text
         function updateLegend() {
             const legend = document.getElementById('chart-legend');
-            if (showGiving) {
-                legend.innerHTML = 'Lines = Attendance avg • Bars = Monthly Giving ($K) • Colors match by year';
+            if (showAttendance && showGiving) {
+                legend.innerHTML = 'Lines = Attendance • Bars = Giving ($K) • Colors match by year';
+            } else if (showAttendance) {
+                legend.textContent = 'Showing attendance only • Toggle giving to compare';
+            } else if (showGiving) {
+                legend.textContent = 'Showing giving only • Toggle attendance to compare';
             } else {
-                legend.textContent = 'Attendance shown as lines • Select years above to compare';
+                legend.textContent = 'Select a data type above to view';
             }
         }
         
@@ -538,22 +565,24 @@
             
             const datasets = [];
             
-            // Attendance datasets (lines)
-            years.forEach((year, idx) => {
-                datasets.push({
-                    label: `${year} Attendance`,
-                    data: months.map(m => averages[year]?.[m] || null),
-                    borderColor: attendanceColors[idx % attendanceColors.length],
-                    backgroundColor: attendanceColors[idx % attendanceColors.length] + '20',
-                    tension: 0.3,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    spanGaps: true,
-                    yAxisID: 'y',
-                    type: 'line',
-                    order: 1
+            // Attendance datasets (lines) - only if toggle is on
+            if (showAttendance) {
+                years.forEach((year, idx) => {
+                    datasets.push({
+                        label: `${year} Attendance`,
+                        data: months.map(m => averages[year]?.[m] || null),
+                        borderColor: attendanceColors[idx % attendanceColors.length],
+                        backgroundColor: attendanceColors[idx % attendanceColors.length] + '20',
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        spanGaps: true,
+                        yAxisID: 'y',
+                        type: 'line',
+                        order: 1
+                    });
                 });
-            });
+            }
             
             // Giving datasets (bars) - only if toggle is on
             // Colors match the attendance line colors for each year
@@ -619,13 +648,13 @@
                     scales: {
                         y: {
                             type: 'linear',
-                            display: true,
+                            display: showAttendance,
                             position: 'left',
                             beginAtZero: false,
                             grid: { color: '#333' },
                             ticks: { color: '#888' },
                             title: {
-                                display: true,
+                                display: showAttendance,
                                 text: 'Attendance',
                                 color: '#C0A365'
                             }
@@ -633,9 +662,9 @@
                         y1: {
                             type: 'linear',
                             display: showGiving,
-                            position: 'right',
+                            position: showAttendance ? 'right' : 'left',
                             beginAtZero: true,
-                            grid: { drawOnChartArea: false },
+                            grid: { drawOnChartArea: !showAttendance },
                             ticks: { 
                                 color: '#2ecc71',
                                 callback: function(value) {
